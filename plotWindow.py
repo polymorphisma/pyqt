@@ -1251,6 +1251,16 @@ class PlotWindow(QMainWindow):
         self.plotMainDraph()
         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press_plot)
 
+    def update_data(self, new_data: pd.DataFrame):
+        """
+        Update the candlestick chart with new data.
+        """
+        # Append new data, ensuring no duplicate timestamps
+        self.df = pd.concat([self.df, new_data]).drop_duplicates(subset="DateTime").sort_values(by="DateTime")
+
+        # Refresh the plot
+        self.plotMainDraph()
+
     def save_plot_data(self, filename='my.pkl'):
         rectangles_data = []
 

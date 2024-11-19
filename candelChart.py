@@ -10,7 +10,7 @@
 # import pandas as pd
 # from matplotlib.ticker import MultipleLocator
 from PyQt5.QtCore import QDate, QTimer
-from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog, QComboBox
+from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog, QComboBox, QTabWidget, QWidget
 from plotWindow import PlotWindow
 import sys
 import pandas as pd
@@ -53,7 +53,7 @@ class CandlestickGUI(QMainWindow):
             "1 month": "TIMEFRAME_MN1",
         }
 
-        self.interval_mapping_metatrader = {
+        self.metatrader_mapping = {
             "TIMEFRAME_M1": mt.TIMEFRAME_M1,
             "TIMEFRAME_M2": mt.TIMEFRAME_M2,
             "TIMEFRAME_M3": mt.TIMEFRAME_M3,
@@ -95,37 +95,46 @@ class CandlestickGUI(QMainWindow):
         else:
             print("success")
 
+        self.tabs = QTabWidget(self)
+        self.setCentralWidget(self.tabs)
+
+        self.csv_tab = QWidget()
+        self.tabs.addTab(self.csv_tab, "CSV upload")
+
+        self.live_tab = QWidget()
+        self.tabs.addTab(self.live_tab, "Live Data")
+
         self.setFixedSize(self.windowWidth, 300)
         # Create file selection button
-        self.file_label = QLabel(self)
+        self.file_label = QLabel(self.csv_tab)
         self.file_label.setText("Select CSV file:")
         self.file_label.move(self.startRange, self.baseHeight)
 
         self.startRange += 85
-        self.file_button = QPushButton(self)
+        self.file_button = QPushButton(self.csv_tab)
         self.file_button.setText("Select File")
         self.file_button.move(self.startRange, self.baseHeight)
         self.file_button.clicked.connect(self.select_file)
 
         # Create date range selection fields
         self.startRange += 150
-        self.start_date_label = QLabel(self)
+        self.start_date_label = QLabel(self.csv_tab)
         self.start_date_label.setText("Start Date (Y-M-D):")
         self.start_date_label.move(self.startRange, self.baseHeight)
         # self.start_date_entry = QLineEdit(self)
         self.startRange += 120
 
-        self.date_edit = QDateEdit(QDate.currentDate(), self)
+        self.date_edit = QDateEdit(QDate.currentDate(), self.csv_tab)
         self.date_edit.setDisplayFormat('yyyy-MM-dd')
         self.date_edit.move(self.startRange, self.baseHeight)
 
         self.startRange += 150
-        self.end_date_label = QLabel(self)
+        self.end_date_label = QLabel(self.csv_tab)
         self.end_date_label.setText("End Date (YY-M-D):")
         self.end_date_label.move(self.startRange, self.baseHeight)
 
         self.startRange += 120
-        self.end_date_entry = QDateEdit(QDate.currentDate(), self)
+        self.end_date_entry = QDateEdit(QDate.currentDate(), self.csv_tab)
         self.end_date_entry.setDisplayFormat('yyyy-MM-dd')
         self.end_date_entry.move(self.startRange, self.baseHeight)
 
@@ -133,7 +142,7 @@ class CandlestickGUI(QMainWindow):
         self.baseHeight += 40
         self.startRange = 20
 
-        self.candle_width_label = QLabel(self)
+        self.candle_width_label = QLabel(self.csv_tab)
         self.candle_width_label.setText("Candle Width(x% of width):")
 
         self.candle_width_label.move(self.startRange, self.baseHeight)
@@ -141,22 +150,24 @@ class CandlestickGUI(QMainWindow):
         # self.candle_width_entry = QLineEdit(self)
         self.startRange += 180
 
-        self.doubleSpinBox = QDoubleSpinBox(self)
+        self.doubleSpinBox = QDoubleSpinBox(self.csv_tab)
         self.doubleSpinBox.setDecimals(2)
         self.doubleSpinBox.setRange(0, 100)
         self.doubleSpinBox.setSingleStep(0.01)
         self.doubleSpinBox.move(self.startRange, self.baseHeight)
 
+        self.startRange = 20
+        self.baseHeight = 30
         # Dropdown Selection for instrumnet
-        self.startRange += 120  # Reset range
+        # self.startRange += 120  # Reset range
 
-        self.instrument_label = QLabel(self)
+        self.instrument_label = QLabel(self.live_tab)
         self.instrument_label.setText("Select Instrument:")
         self.instrument_label.move(self.startRange, self.baseHeight)
 
         self.startRange += 100
 
-        self.instrument_dropdown = QComboBox(self)
+        self.instrument_dropdown = QComboBox(self.live_tab)
         self.instrument_dropdown.move(self.startRange, self.baseHeight)
 
         # Configurable list
@@ -171,13 +182,13 @@ class CandlestickGUI(QMainWindow):
         # Dropdown Selection for interval
         self.startRange += 120  # Reset range
 
-        self.interval_label = QLabel(self)
+        self.interval_label = QLabel(self.live_tab)
         self.interval_label.setText("Select Interval:")
         self.interval_label.move(self.startRange, self.baseHeight)
 
         self.startRange += 100
 
-        self.interval_dropdown = QComboBox(self)
+        self.interval_dropdown = QComboBox(self.live_tab)
         self.interval_dropdown.move(self.startRange, self.baseHeight)
 
         # Configurable list
@@ -190,6 +201,17 @@ class CandlestickGUI(QMainWindow):
         self.interval_dropdown.setCurrentIndex(0)
         # Connect signal to slot
         self.interval_dropdown.currentIndexChanged.connect(self.on_interval_selected)
+
+        self.startRange += 120
+        self.start_date_label = QLabel(self.live_tab)
+        self.start_date_label.setText("Start Date (Y-M-D):")
+        self.start_date_label.move(self.startRange, self.baseHeight)
+
+        self.startRange += 120
+
+        self.date_edit = QDateEdit(QDate.currentDate(), self.live_tab)
+        self.date_edit.setDisplayFormat('yyyy-MM-dd')
+        self.date_edit.move(self.startRange, self.baseHeight)
 
         self.baseHeight += 60
 
@@ -211,24 +233,14 @@ class CandlestickGUI(QMainWindow):
         self.plot_windows = []
 
 
-        # Timer for live updates
-        self.timer = QTimer()
-
-        if self.file_path is not None:  # File-based data
-            self.timer.timeout.connect(self.getDataFromFile)
-            # Fetch initial data from file
-            self.getDataFromFile()
-        else:  # Live data
-            self.timer.timeout.connect(self.fetch_live_data)
-            # Fetch initial live data
-            self.fetch_live_data()
-
-        # Start periodic updates (every 10 seconds)
-        self.timer.start(10000)
-
+        # Timer for updating the plot window every 60 seconds
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_plot_windows)
+        # self.update_timer.start(1000)  # 60 seconds (60000 ms)
+        self.timer_started = False
 
     def select_file(self):
-        self.file_path, _ = QFileDialog.getOpenFileName(self, "Select CSV file")
+        self.file_path, _ = QFileDialog.getOpenFileName(self.csv_tab, "Select CSV file")
         self.errorDisplay(' ')
         # self.file_button.setText(self.file_path)
 
@@ -247,8 +259,8 @@ class CandlestickGUI(QMainWindow):
             # Get the MetaTrader5 timeframe constant
             timeframe_constant = self.interval_mapping[selected_interval]
             # Check if the constant exists in the MetaTrader5 module
-            if timeframe_constant in self.interval_mapping_metatrader:
-                self.metatrader_timeframe = self.interval_mapping_metatrader[timeframe_constant]
+            if timeframe_constant in self.metatrader_mapping:
+                self.metatrader_timeframe = self.metatrader_mapping[timeframe_constant]
             else:
                 self.errorDisplay("Interval not valid.")
 
@@ -314,6 +326,11 @@ class CandlestickGUI(QMainWindow):
         elif self.selected_instrument != '-' and self.file_path is None:
             df = self.fetch_live_data()
 
+            # now start timer
+            self.update_timer.start(60000)  # 60 seconds (60000 ms)
+            self.timer_started = True
+
+
         return df
 
     def plot_candles(self, empty=False):
@@ -321,11 +338,32 @@ class CandlestickGUI(QMainWindow):
         df = self.getDataFrame()
         if df is None:
             return
-        persentageVal = float(self.doubleSpinBox.value())
-        plot_window = PlotWindow(df=df, persentageVal=persentageVal)
-        self.plot_windows.append(plot_window)
-        plot_window.show()
 
+        # Check if a plot window for the current instrument already exists
+        plot_window = next((w for w in self.plot_windows if w.instrument == self.selected_instrument), None)
+
+        if plot_window is None:
+            # Create a new plot window if it doesn't exist
+            persentageVal = float(self.doubleSpinBox.value())
+            plot_window = PlotWindow(df=df, persentageVal=persentageVal)
+            plot_window.instrument = self.selected_instrument
+            self.plot_windows.append(plot_window)
+            plot_window.show()
+        else:
+            # Update the existing plot window
+            plot_window.update_data(df)
+
+    def update_plot_windows(self):
+        print("Updating plot windows...")
+        df = self.fetch_live_data()
+        if df is None:
+            return
+
+        # Find the plot window for the current instrument and update it
+        for window in self.plot_windows:
+            if window.instrument == self.selected_instrument:
+                window.update_data(df)
+                break
 
     def setDate(self, date):
         self.startDate = date
