@@ -1,0 +1,37 @@
+# **Candlestick Chart Application - Quick Setup (Windows)**
+
+## **Setup Instructions**
+
+1. **Download and Extract Project Files**
+   - Download the ZIP file and extract it.
+   - Open the extracted folder in your IDE (e.g., VS Code).
+
+2. **Create and Activate Virtual Environment**
+   - Open a terminal in the project folder.
+   - Run the following commands:
+     ```bash
+     python -m venv .venv
+     .venv\Scripts\activate
+     ```
+
+3. **Install Dependencies**
+   - Install required packages:
+     ```bash
+     pip install -r requirements.txt
+     ```
+
+4. **Run the Application**
+   - Start the application:
+     ```bash
+     python updated_candelChart.py
+     ```
+
+5. **Optional: Change Symbol**
+   - To use a different symbol, edit the `updated_candelChart.py` file:
+     ```python
+     self.symbol = "YOUR_SYMBOL"  # Replace with your desired symbol
+     ```
+
+
+Note: there are few limitation here, the plot button doesn't work and there is no dateframe choose options. since this is only the show that i can do this task please let me know how is it. 
+as for the qoute. for each video can we set price for them since all of them have different level of complexicity as for this task it will be 30 usd. what do you think?
