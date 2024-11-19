@@ -1633,27 +1633,27 @@ class PlotWindow(QMainWindow):
             freq = "H"
             datetime_format = '%Y.%m.%d %H'
         else:
-            # Determine time delta in minutes
-            if len(self.df) > 1:
-                time_delta = self.df['DateTime'].iloc[1] - self.df['DateTime'].iloc[0]
-                time_delta_minute = time_delta.total_seconds() / 60  # Convert timedelta to minutes
-            else:
-                time_delta_minute = 1  # Default to 1 minute if there's not enough data
+            time_delta_minute = 1
 
+            try:
+                if len(self.df) > 1:
+                    time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
+                    time_delta_minute = time_delta_minute.total_seconds()/60
+            except AttributeError as exp:
+                if len(self.df) > 1:
+                    time_delta = self.df['DateTime'].iloc[1] - self.df['DateTime'].iloc[0]
+                    time_delta_minute = time_delta.total_seconds() / 60  # Convert timedelta to minutes
+            
             max_datetime += pd.Timedelta(minutes=time_delta_minute)
-            freq = f'{int(time_delta_minute)}T'  # Frequency in minutes (e.g., "5T" for 5 minutes)
+            freq = f'{time_delta_minute}T'
             datetime_format = '%Y.%m.%d %H:%M'
-
         if count > 0:
             dop = pd.date_range(max_datetime, periods=count * self.grid_parametrs[0], freq=freq)
 
-        # Combine existing DateTime labels and additional generated labels
         result.extend(self.df['DateTime'].dt.strftime(datetime_format).tolist())
         if len(dop) > 0:
             result.extend(dop.strftime(datetime_format).tolist())
-        
         return result
-
 
     def plotMainDraph(self):
         # if self.worker_thread is None or not self.worker_thread.isRunning():
