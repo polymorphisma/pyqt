@@ -10,11 +10,12 @@
 # import pandas as pd
 # from matplotlib.ticker import MultipleLocator
 from PyQt5.QtCore import QDate
-from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog
-from plotWindow import PlotWindow
+from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog, QComboBox
+from updated_plotWindow import PlotWindow
 import sys
 import pandas as pd
-
+import datetime
+import MetaTrader5 as mt
 # from PySide2 import QtWidgets
 
 
@@ -22,10 +23,77 @@ class CandlestickGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.file_path = None
+        self.selected_instrument = None
         self.setWindowTitle("Candlestick Chart")
         self.windowWidth = 800
         self.startRange = 20
         self.baseHeight = 30
+
+        self.interval_mapping = {
+            "1 minute": "TIMEFRAME_M1",
+            "2 minutes": "TIMEFRAME_M2",
+            "3 minutes": "TIMEFRAME_M3",
+            "4 minutes": "TIMEFRAME_M4",
+            "5 minutes": "TIMEFRAME_M5",
+            "6 minutes": "TIMEFRAME_M6",
+            "10 minutes": "TIMEFRAME_M10",
+            "12 minutes": "TIMEFRAME_M12",
+            "15 minutes": "TIMEFRAME_M15",  # Possible duplicate in your list
+            "20 minutes": "TIMEFRAME_M20",
+            "30 minutes": "TIMEFRAME_M30",
+            "1 hour": "TIMEFRAME_H1",
+            "2 hours": "TIMEFRAME_H2",
+            "3 hours": "TIMEFRAME_H3",
+            "4 hours": "TIMEFRAME_H4",
+            "6 hours": "TIMEFRAME_H6",
+            "8 hours": "TIMEFRAME_H8",
+            "12 hours": "TIMEFRAME_H12",
+            "1 day": "TIMEFRAME_D1",
+            "1 week": "TIMEFRAME_W1",
+            "1 month": "TIMEFRAME_MN1",
+        }
+
+        self.interval_mapping_metatrader = {
+            "TIMEFRAME_M1": mt.TIMEFRAME_M1,
+            "TIMEFRAME_M2": mt.TIMEFRAME_M2,
+            "TIMEFRAME_M3": mt.TIMEFRAME_M3,
+            "TIMEFRAME_M4": mt.TIMEFRAME_M4,
+            "TIMEFRAME_M5": mt.TIMEFRAME_M5,
+            "TIMEFRAME_M6": mt.TIMEFRAME_M6,
+            "TIMEFRAME_M10": mt.TIMEFRAME_M10,
+            "TIMEFRAME_M12": mt.TIMEFRAME_M12,
+            "TIMEFRAME_M20": mt.TIMEFRAME_M20,
+            "TIMEFRAME_M30": mt.TIMEFRAME_M30,
+            "TIMEFRAME_H1": mt.TIMEFRAME_H1,
+            "TIMEFRAME_H2": mt.TIMEFRAME_H2,
+            "TIMEFRAME_H3": mt.TIMEFRAME_H3,
+            "TIMEFRAME_H4": mt.TIMEFRAME_H4,
+            "TIMEFRAME_H6": mt.TIMEFRAME_H6,
+            "TIMEFRAME_H8": mt.TIMEFRAME_H8,
+            "TIMEFRAME_H12": mt.TIMEFRAME_H12,
+            "TIMEFRAME_D1": mt.TIMEFRAME_D1,
+            "TIMEFRAME_W1": mt.TIMEFRAME_W1,
+            "TIMEFRAME_MN1": mt.TIMEFRAME_MN1,
+        }
+
+
+        self.selected_interval = "TIMEFRAME_M1"
+
+
+        # MetaTrader5 variables
+        self.metatrader_timeframe = mt.TIMEFRAME_M1
+
+        # MetaTrader5 initialization
+        mt.initialize()
+        username = 10004945780
+        password = "*5PyZjTb"
+        server = "MetaQuotes-Demo"
+
+        if not mt.login(username, password, server):
+            print("MetaTrader5 login failed")
+            return
+        else:
+            print("success")
 
         self.setFixedSize(self.windowWidth, 300)
         # Create file selection button
@@ -79,6 +147,50 @@ class CandlestickGUI(QMainWindow):
         self.doubleSpinBox.setSingleStep(0.01)
         self.doubleSpinBox.move(self.startRange, self.baseHeight)
 
+        # Dropdown Selection for instrumnet
+        self.startRange += 120  # Reset range
+
+        self.instrument_label = QLabel(self)
+        self.instrument_label.setText("Select Instrument:")
+        self.instrument_label.move(self.startRange, self.baseHeight)
+
+        self.startRange += 100
+
+        self.instrument_dropdown = QComboBox(self)
+        self.instrument_dropdown.move(self.startRange, self.baseHeight)
+
+        # Configurable list
+        self.instruments = ["-", "BTCUSD", "EURUSD", "RANUSD"]  # Default list
+        self.instrument_dropdown.addItems(self.instruments)
+
+        # set a default value
+        self.instrument_dropdown.setCurrentIndex(0)
+        # Connect signal to slot
+        self.instrument_dropdown.currentIndexChanged.connect(self.on_instrument_selected)
+
+        # Dropdown Selection for interval
+        self.startRange += 120  # Reset range
+
+        self.interval_label = QLabel(self)
+        self.interval_label.setText("Select Interval:")
+        self.interval_label.move(self.startRange, self.baseHeight)
+
+        self.startRange += 100
+
+        self.interval_dropdown = QComboBox(self)
+        self.interval_dropdown.move(self.startRange, self.baseHeight)
+
+        # Configurable list
+        # self.intervals = ["-"]  # Default list
+        # self.intervals.extend(list(self.interval_mapping.keys()))
+        self.intervals = list(self.interval_mapping.keys())
+        self.interval_dropdown.addItems(self.intervals)
+
+        # set a default value
+        self.interval_dropdown.setCurrentIndex(0)
+        # Connect signal to slot
+        self.interval_dropdown.currentIndexChanged.connect(self.on_interval_selected)
+
         self.baseHeight += 60
 
         # Create plot button
@@ -103,10 +215,32 @@ class CandlestickGUI(QMainWindow):
         self.errorDisplay(' ')
         # self.file_button.setText(self.file_path)
 
+    def on_instrument_selected(self):
+        selected_instrument = self.instrument_dropdown.currentText()
+        if selected_instrument != "-":
+            self.selected_instrument = selected_instrument
+        else:
+            self.selected_instrument = None
+
+    def on_interval_selected(self):
+        selected_interval = self.interval_dropdown.currentText()
+        
+        if self.selected_instrument is not None and selected_interval != "-":  
+
+            # Get the MetaTrader5 timeframe constant
+            timeframe_constant = self.interval_mapping[selected_interval]
+            # Check if the constant exists in the MetaTrader5 module
+            if timeframe_constant in self.interval_mapping_metatrader:
+                self.metatrader_timeframe = self.interval_mapping_metatrader[timeframe_constant]
+            else:
+                self.errorDisplay("Interval not valid.")
+
+        print(self.metatrader_timeframe)
+
     def errorDisplay(self, error):
         self.errorLabel.setText(f'{self.file_path} {error}')
 
-    def getDataFrame(self):
+    def getDataFromFile(self):
         startDate = self.date_edit.date().toPyDate()
         endDate = self.end_date_entry.date().toPyDate()
 
@@ -127,8 +261,43 @@ class CandlestickGUI(QMainWindow):
         if df.shape[0] <= 0:
             self.errorDisplay("Empty!!!.No Data To Display")
             return None
+
+    def fetch_live_data(self):
+        """Fetch the latest data from MetaTrader5."""
+        # date_from = datetime.now() - pd.Timedelta(minutes=60)
+        # print(self.date_edit.date().toPyDate())
+        date_from = self.date_edit.date().toPyDate()
+        datetime_from = datetime.datetime.combine(date_from, datetime.datetime.min.time())
+        date_to = datetime.datetime.now()
+
+        # Retrieve price data from MetaTrader5
+        price = mt.copy_rates_range(self.selected_instrument, self.metatrader_timeframe, datetime_from, date_to)
+        if price is None or len(price) == 0:
+            self.errorDisplay("No data retrieved from MetaTrader5")
+            return
+
+        # Update DataFrame
+        df = pd.DataFrame(price)
+        df = df[:100]
+        df['time'] = pd.to_datetime(df['time'], unit='s')
+
+        # Rename 'time' column to 'DateTime' to match plotWindow expectations
+        df.rename(columns={
+                        "time": "DateTime", "open": "Open", "high": "High",
+                        "low": "Low", "close": "Close", "tick_volume": "Volume"
+                    }, inplace=True)
+        print(df)
         return df
 
+    def getDataFrame(self):
+
+        if self.file_path is not None:
+            df = self.getDataFromFile()
+
+        elif self.selected_instrument != '-' and self.file_path is None:
+            df = self.fetch_live_data()
+
+        return df
 
     def plot_candles(self, empty=False):
         self.errorDisplay(" ")

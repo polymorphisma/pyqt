@@ -1634,9 +1634,16 @@ class PlotWindow(QMainWindow):
             datetime_format = '%Y.%m.%d %H'
         else:
             time_delta_minute = 1
-            if len(self.df) > 1:
-                time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
-                time_delta_minute = time_delta_minute.total_seconds()/60
+
+            try:
+                if len(self.df) > 1:
+                    time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
+                    time_delta_minute = time_delta_minute.total_seconds()/60
+            except AttributeError as exp:
+                if len(self.df) > 1:
+                    time_delta = self.df['DateTime'].iloc[1] - self.df['DateTime'].iloc[0]
+                    time_delta_minute = time_delta.total_seconds() / 60  # Convert timedelta to minutes
+            
             max_datetime += pd.Timedelta(minutes=time_delta_minute)
             freq = f'{time_delta_minute}T'
             datetime_format = '%Y.%m.%d %H:%M'
