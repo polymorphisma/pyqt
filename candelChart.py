@@ -9,9 +9,9 @@
 # import matplotlib.patches as patches
 # import pandas as pd
 # from matplotlib.ticker import MultipleLocator
-from PyQt5.QtCore import QDate
+from PyQt5.QtCore import QDate, QTimer
 from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog, QComboBox
-from updated_plotWindow import PlotWindow
+from plotWindow import PlotWindow
 import sys
 import pandas as pd
 import datetime
@@ -210,6 +210,23 @@ class CandlestickGUI(QMainWindow):
         # self.showMaximized()
         self.plot_windows = []
 
+
+        # Timer for live updates
+        self.timer = QTimer()
+
+        if self.file_path is not None:  # File-based data
+            self.timer.timeout.connect(self.getDataFromFile)
+            # Fetch initial data from file
+            self.getDataFromFile()
+        else:  # Live data
+            self.timer.timeout.connect(self.fetch_live_data)
+            # Fetch initial live data
+            self.fetch_live_data()
+
+        # Start periodic updates (every 10 seconds)
+        self.timer.start(10000)
+
+
     def select_file(self):
         self.file_path, _ = QFileDialog.getOpenFileName(self, "Select CSV file")
         self.errorDisplay(' ')
@@ -271,6 +288,7 @@ class CandlestickGUI(QMainWindow):
         date_to = datetime.datetime.now()
 
         # Retrieve price data from MetaTrader5
+        # self.selected_instrument = "BTCUSD"
         price = mt.copy_rates_range(self.selected_instrument, self.metatrader_timeframe, datetime_from, date_to)
         if price is None or len(price) == 0:
             self.errorDisplay("No data retrieved from MetaTrader5")
@@ -278,7 +296,6 @@ class CandlestickGUI(QMainWindow):
 
         # Update DataFrame
         df = pd.DataFrame(price)
-        df = df[:100]
         df['time'] = pd.to_datetime(df['time'], unit='s')
 
         # Rename 'time' column to 'DateTime' to match plotWindow expectations
