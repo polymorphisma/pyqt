@@ -95,6 +95,10 @@ class CandlestickGUI(QMainWindow):
         else:
             print("success")
 
+        symbols = mt.symbols_get()
+        symbol_list = [x.name for x in symbols]
+
+
         self.tabs = QTabWidget(self)
         self.setCentralWidget(self.tabs)
 
@@ -171,7 +175,8 @@ class CandlestickGUI(QMainWindow):
         self.instrument_dropdown.move(self.startRange, self.baseHeight)
 
         # Configurable list
-        self.instruments = ["-", "BTCUSD", "EURUSD", "RANUSD"]  # Default list
+        self.instruments = ["-"]  # Default list
+        self.instruments.extend(symbol_list)
         self.instrument_dropdown.addItems(self.instruments)
 
         # set a default value
@@ -297,7 +302,7 @@ class CandlestickGUI(QMainWindow):
         # print(self.date_edit.date().toPyDate())
         date_from = self.date_edit.date().toPyDate()
         datetime_from = datetime.datetime.combine(date_from, datetime.datetime.min.time())
-        date_to = datetime.datetime.now()
+        date_to = datetime.datetime.now() + datetime.timedelta(days=1)
 
         # Retrieve price data from MetaTrader5
         # self.selected_instrument = "BTCUSD"
@@ -310,11 +315,13 @@ class CandlestickGUI(QMainWindow):
         df = pd.DataFrame(price)
         df['time'] = pd.to_datetime(df['time'], unit='s')
 
-        # Rename 'time' column to 'DateTime' to match plotWindow expectations
+        # Renaming 'time' column to 'DateTime' to match plotWindow expectations
         df.rename(columns={
                         "time": "DateTime", "open": "Open", "high": "High",
                         "low": "Low", "close": "Close", "tick_volume": "Volume"
                     }, inplace=True)
+        df = df[df['DateTime'] >= datetime_from]
+        df.reset_index(drop=True, inplace=True)
         print(df)
         return df
 
