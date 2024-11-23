@@ -1143,10 +1143,10 @@ class PlotWindow(QMainWindow):
         self.bm = BlitManager(self.canvas)
         self.cursor = BlittedCursor(ax=self.ax, bm=self.bm)
         # Replace original column with modified column
-        self.df['High'] = df['High']*self.factor
-        self.df['Low'] = df['Low']*self.factor
-        self.df['Open'] = df['Open']*self.factor
-        self.df['Close'] = df['Close']*self.factor
+        df['High'] = df['High']*self.factor
+        df['Low'] = df['Low']*self.factor
+        df['Open'] = df['Open']*self.factor
+        df['Close'] = df['Close']*self.factor
         top_button_layout = QHBoxLayout()
         self.back = QPushButton(self)
         self.back.setText("Back")
@@ -1250,17 +1250,6 @@ class PlotWindow(QMainWindow):
         self.load_parametrs()
         self.plotMainDraph()
         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press_plot)
-
-    def update_data(self, new_data: pd.DataFrame):
-        """
-        Update the candlestick chart with new data.
-        """
-        # Append new data, ensuring no duplicate timestamps
-        self.df = pd.concat([self.df, new_data]).drop_duplicates(subset="DateTime").sort_values(by="DateTime")
-
-        # Refresh the plot
-        self.plotMainDraph()
-        self.set_parametrs_ax()
 
     def save_plot_data(self, filename='my.pkl'):
         rectangles_data = []
@@ -1722,6 +1711,40 @@ class PlotWindow(QMainWindow):
         self.ax.figure.canvas.draw_idle()
         self.coordinates_label.setValue(0)
         self.coordinates_label.setVisible(False)
+
+    def add_live_data(self, new_data):
+        """Dynamically add new data to the plot."""
+        if new_data.empty:
+            return
+
+        # Add the new data to the DataFrame
+        self.df = pd.concat([self.df, new_data]).reset_index(drop=True)
+
+        # Plot the new candlestick bars
+        currentPos = self.df.shape[0] * self.step
+        for _, row in new_data.iterrows():
+            heightOuter = (row['High'] - row['Low'])
+            heightInner = abs(row['Close'] - row['Open'])
+            innerMinVal = min([row['Close'], row['Open']])
+
+            outer_rect = patches.Rectangle(
+                (currentPos, row['Low']), self.step, heightOuter,
+                linewidth=0.5, edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
+            self.ax.add_patch(outer_rect)
+
+            inner_rect = patches.Rectangle(
+                (currentPos, innerMinVal), self.step, heightInner,
+                linewidth=0.5,
+                facecolor=self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10],
+                zorder=1
+            )
+            self.ax.add_patch(inner_rect)
+
+            currentPos += self.step
+
+        # Redraw the plot
+        self.bm.update()
+        self.ax.figure.canvas.draw_idle()
 
 
 if __name__ == '__main__':

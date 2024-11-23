@@ -85,8 +85,8 @@ class CandlestickGUI(QMainWindow):
 
         # MetaTrader5 initialization
         mt.initialize()
-        username = 5031693843
-        password = "@2JqAkJg"
+        username = 10004945780
+        password = "*5PyZjTb"
         server = "MetaQuotes-Demo"
 
         if not mt.login(username, password, server):
@@ -237,12 +237,12 @@ class CandlestickGUI(QMainWindow):
         # self.showMaximized()
         self.plot_windows = []
 
+                # Add a QTimer for live updates
+        self.live_update_timer = QTimer()
+        self.live_update_timer.timeout.connect(self.update_live_data)  # Connect timer to the update method
+        self.live_data_window = None  # To hold the PlotWindow instance for live updates
+        self.latest_timestamp = None  # Track the latest timestamp for fetching new data
 
-        # Timer for updating the plot window every 60 seconds
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_plot_windows)
-        # self.update_timer.start(60000)  # 60 seconds (60000 ms)
-        self.timer_started = False
 
     def select_file(self):
         self.file_path, _ = QFileDialog.getOpenFileName(self.csv_tab, "Select CSV file")
@@ -298,14 +298,15 @@ class CandlestickGUI(QMainWindow):
 
     def fetch_live_data(self):
         """Fetch the latest data from MetaTrader5."""
-        # date_from = datetime.now() - pd.Timedelta(minutes=60)
-        # print(self.date_edit.date().toPyDate())
-        date_from = self.date_edit.date().toPyDate()
-        datetime_from = datetime.datetime.combine(date_from, datetime.datetime.min.time())
-        date_to = datetime.datetime.now() + datetime.timedelta(days=1)
+        date_from = datetime.datetime.now() - datetime.timedelta(days=3)  # Fetch last 60 minutes for context
+        datetime_from = max(date_from, self.latest_timestamp or date_from)
+        date_to = datetime.datetime.now()
 
+        print(date_from)
+        print(datetime_from)
+        print(date_to)
+        
         # Retrieve price data from MetaTrader5
-        # self.selected_instrument = "BTCUSD"
         price = mt.copy_rates_range(self.selected_instrument, self.metatrader_timeframe, datetime_from, date_to)
         if price is None or len(price) == 0:
             self.errorDisplay("No data retrieved from MetaTrader5")
@@ -313,15 +314,22 @@ class CandlestickGUI(QMainWindow):
 
         # Update DataFrame
         df = pd.DataFrame(price)
+        df = df[:10]
         df['time'] = pd.to_datetime(df['time'], unit='s')
 
-        # Renaming 'time' column to 'DateTime' to match plotWindow expectations
+        # Renaming 'time' column to 'DateTime' to match PlotWindow expectations
         df.rename(columns={
-                        "time": "DateTime", "open": "Open", "high": "High",
-                        "low": "Low", "close": "Close", "tick_volume": "Volume"
-                    }, inplace=True)
-        df = df[df['DateTime'] >= datetime_from]
-        df.reset_index(drop=True, inplace=True)
+            "time": "DateTime", "open": "Open", "high": "High",
+            "low": "Low", "close": "Close", "tick_volume": "Volume"
+        }, inplace=True)
+
+        if self.latest_timestamp is not None:
+            # Filter out data older than the latest timestamp
+            df = df[df['DateTime'] > self.latest_timestamp]
+
+        if not df.empty:
+            self.latest_timestamp = df['DateTime'].max()
+
         return df
 
     def getDataFrame(self):
@@ -332,49 +340,36 @@ class CandlestickGUI(QMainWindow):
         elif self.selected_instrument != '-' and self.file_path is None:
             df = self.fetch_live_data()
 
-            # now start timer
-            self.update_timer.start(60000)  # 60 seconds (60000 ms)
-            self.timer_started = True
-
-
         return df
+    
+    def update_live_data(self):
+        """Fetch new data and update the live chart."""
+        print("Updating live data...")
+
+        if self.live_data_window is None or self.selected_instrument is None:
+            return
+
+        new_data = self.fetch_live_data()
+        if new_data is not None and not new_data.empty:
+            print(f"Adding {len(new_data)} new rows to the chart.")
+            self.live_data_window.add_live_data(new_data)
 
     def plot_candles(self, empty=False):
+        """Handle initial plotting and setup live updates if using live data."""
         self.errorDisplay(" ")
         df = self.getDataFrame()
         if df is None:
             return
-        # Check if a plot window for the current instrument already exists
-        plot_window = next((w for w in self.plot_windows if w.instrument == self.selected_instrument), None)
 
-        if plot_window is None:
-            # Create a new plot window if it doesn't exist
-            persentageVal = float(self.doubleSpinBox.value())
-            plot_window = PlotWindow(df=df, persentageVal=persentageVal)
-            plot_window.instrument = self.selected_instrument
-            self.plot_windows.append(plot_window)
-            plot_window.show()
+        persentageVal = float(self.doubleSpinBox.value())
+        self.live_data_window = PlotWindow(df=df, persentageVal=persentageVal)
+        self.plot_windows.append(self.live_data_window)
+        self.live_data_window.show()
 
-            # Start the timer if not already started
-            if not self.timer_started:
-                self.update_timer.start(60000)  # 60 seconds (60000 ms)
-                self.timer_started = True
-        else:
-            # Update the existing plot window
-            plot_window.update_data(df)
+        if self.selected_instrument is not None and self.file_path is None:
+            # If live data is selected, start live updates
+            self.live_update_timer.start(60000)  # Fetch new data every 5 seconds
 
-    def update_plot_windows(self):
-        print("Updating plot windows...")
-        df = self.fetch_live_data()
-        # print(len(df))
-        if df is None:
-            return
-
-        # Find the plot window for the current instrument and update it
-        for window in self.plot_windows:
-            if window.instrument == self.selected_instrument:
-                window.update_data(df)
-                break
 
     def setDate(self, date):
         self.startDate = date
