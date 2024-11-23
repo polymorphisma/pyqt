@@ -1143,10 +1143,10 @@ class PlotWindow(QMainWindow):
         self.bm = BlitManager(self.canvas)
         self.cursor = BlittedCursor(ax=self.ax, bm=self.bm)
         # Replace original column with modified column
-        df['High'] = df['High']*self.factor
-        df['Low'] = df['Low']*self.factor
-        df['Open'] = df['Open']*self.factor
-        df['Close'] = df['Close']*self.factor
+        self.df['High'] = df['High']*self.factor
+        self.df['Low'] = df['Low']*self.factor
+        self.df['Open'] = df['Open']*self.factor
+        self.df['Close'] = df['Close']*self.factor
         top_button_layout = QHBoxLayout()
         self.back = QPushButton(self)
         self.back.setText("Back")
@@ -1260,6 +1260,7 @@ class PlotWindow(QMainWindow):
 
         # Refresh the plot
         self.plotMainDraph()
+        self.set_parametrs_ax()
 
     def save_plot_data(self, filename='my.pkl'):
         rectangles_data = []

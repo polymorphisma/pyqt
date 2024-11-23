@@ -11,7 +11,7 @@
 # from matplotlib.ticker import MultipleLocator
 from PyQt5.QtCore import QDate, QTimer
 from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QDateEdit, QDoubleSpinBox, QFileDialog, QComboBox, QTabWidget, QWidget
-from plotWindow import PlotWindow
+from updated_plotWindow import PlotWindow
 import sys
 import pandas as pd
 import datetime
@@ -85,8 +85,8 @@ class CandlestickGUI(QMainWindow):
 
         # MetaTrader5 initialization
         mt.initialize()
-        username = 10004945780
-        password = "*5PyZjTb"
+        username = 5031693843
+        password = "@2JqAkJg"
         server = "MetaQuotes-Demo"
 
         if not mt.login(username, password, server):
@@ -241,7 +241,7 @@ class CandlestickGUI(QMainWindow):
         # Timer for updating the plot window every 60 seconds
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_plot_windows)
-        # self.update_timer.start(1000)  # 60 seconds (60000 ms)
+        # self.update_timer.start(60000)  # 60 seconds (60000 ms)
         self.timer_started = False
 
     def select_file(self):
@@ -322,7 +322,6 @@ class CandlestickGUI(QMainWindow):
                     }, inplace=True)
         df = df[df['DateTime'] >= datetime_from]
         df.reset_index(drop=True, inplace=True)
-        print(df)
         return df
 
     def getDataFrame(self):
@@ -345,7 +344,6 @@ class CandlestickGUI(QMainWindow):
         df = self.getDataFrame()
         if df is None:
             return
-
         # Check if a plot window for the current instrument already exists
         plot_window = next((w for w in self.plot_windows if w.instrument == self.selected_instrument), None)
 
@@ -356,6 +354,11 @@ class CandlestickGUI(QMainWindow):
             plot_window.instrument = self.selected_instrument
             self.plot_windows.append(plot_window)
             plot_window.show()
+
+            # Start the timer if not already started
+            if not self.timer_started:
+                self.update_timer.start(60000)  # 60 seconds (60000 ms)
+                self.timer_started = True
         else:
             # Update the existing plot window
             plot_window.update_data(df)
@@ -363,6 +366,7 @@ class CandlestickGUI(QMainWindow):
     def update_plot_windows(self):
         print("Updating plot windows...")
         df = self.fetch_live_data()
+        # print(len(df))
         if df is None:
             return
 

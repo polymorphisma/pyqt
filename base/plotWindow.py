@@ -1634,16 +1634,9 @@ class PlotWindow(QMainWindow):
             datetime_format = '%Y.%m.%d %H'
         else:
             time_delta_minute = 1
-
-            try:
-                if len(self.df) > 1:
-                    time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
-                    time_delta_minute = time_delta_minute.total_seconds()/60
-            except AttributeError as exp:
-                if len(self.df) > 1:
-                    time_delta = self.df['DateTime'].iloc[1] - self.df['DateTime'].iloc[0]
-                    time_delta_minute = time_delta.total_seconds() / 60  # Convert timedelta to minutes
-            
+            if len(self.df) > 1:
+                time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
+                time_delta_minute = time_delta_minute.total_seconds()/60
             max_datetime += pd.Timedelta(minutes=time_delta_minute)
             freq = f'{time_delta_minute}T'
             datetime_format = '%Y.%m.%d %H:%M'
@@ -1711,40 +1704,6 @@ class PlotWindow(QMainWindow):
         self.ax.figure.canvas.draw_idle()
         self.coordinates_label.setValue(0)
         self.coordinates_label.setVisible(False)
-
-    def add_live_data(self, new_data):
-        """Dynamically add new data to the plot."""
-        if new_data.empty:
-            return
-
-        # Add the new data to the DataFrame
-        self.df = pd.concat([self.df, new_data]).reset_index(drop=True)
-
-        # Plot the new candlestick bars
-        currentPos = self.df.shape[0] * self.step
-        for _, row in new_data.iterrows():
-            heightOuter = (row['High'] - row['Low'])
-            heightInner = abs(row['Close'] - row['Open'])
-            innerMinVal = min([row['Close'], row['Open']])
-
-            outer_rect = patches.Rectangle(
-                (currentPos, row['Low']), self.step, heightOuter,
-                linewidth=0.5, edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
-            self.ax.add_patch(outer_rect)
-
-            inner_rect = patches.Rectangle(
-                (currentPos, innerMinVal), self.step, heightInner,
-                linewidth=0.5,
-                facecolor=self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10],
-                zorder=1
-            )
-            self.ax.add_patch(inner_rect)
-
-            currentPos += self.step
-
-        # Redraw the plot
-        self.bm.update()
-        self.ax.figure.canvas.draw_idle()
 
 
 if __name__ == '__main__':
