@@ -298,14 +298,19 @@ class CandlestickGUI(QMainWindow):
 
     def fetch_live_data(self):
         """Fetch the latest data from MetaTrader5."""
-        date_from = datetime.datetime.now() - datetime.timedelta(days=3)  # Fetch last 60 minutes for context
+        # date_from = datetime.datetime.now() - datetime.timedelta(days=3)  # Fetch last 60 minutes for context
+        # datetime_from = max(date_from, self.latest_timestamp or date_from)
+        # date_to = datetime.datetime.now()
+
+
+        date_from = self.date_edit.date().toPyDate()
         datetime_from = max(date_from, self.latest_timestamp or date_from)
+        datetime_from = datetime.datetime.combine(datetime_from, datetime.datetime.min.time())
         date_to = datetime.datetime.now()
 
         print(date_from)
         print(datetime_from)
         print(date_to)
-        
         # Retrieve price data from MetaTrader5
         price = mt.copy_rates_range(self.selected_instrument, self.metatrader_timeframe, datetime_from, date_to)
         if price is None or len(price) == 0:
@@ -314,7 +319,6 @@ class CandlestickGUI(QMainWindow):
 
         # Update DataFrame
         df = pd.DataFrame(price)
-        df = df[:10]
         df['time'] = pd.to_datetime(df['time'], unit='s')
 
         # Renaming 'time' column to 'DateTime' to match PlotWindow expectations
@@ -329,7 +333,7 @@ class CandlestickGUI(QMainWindow):
 
         if not df.empty:
             self.latest_timestamp = df['DateTime'].max()
-
+        print(df)
         return df
 
     def getDataFrame(self):

@@ -21,6 +21,8 @@ import MetaTrader5 as mt
 
 class CandlestickGUI(QMainWindow):
     def __init__(self):
+        self.factor = 10000
+
         super().__init__()
         self.file_path = None
         self.selected_instrument = None
@@ -85,9 +87,12 @@ class CandlestickGUI(QMainWindow):
 
         # MetaTrader5 initialization
         mt.initialize()
-        username = 10004945780
-        password = "*5PyZjTb"
-        server = "MetaQuotes-Demo"
+        # username = 10004945780
+        # password = "*5PyZjTb"
+        # server = "MetaQuotes-Demo"
+        username = 52061104
+        password = "0L@o8E4lAemqCb"
+        server = "ICMarketsSC-Demo"
 
         if not mt.login(username, password, server):
             print("MetaTrader5 login failed")
@@ -304,13 +309,16 @@ class CandlestickGUI(QMainWindow):
 
 
         date_from = self.date_edit.date().toPyDate()
+        date_from = datetime.datetime.combine(date_from, datetime.datetime.min.time())
+        
         datetime_from = max(date_from, self.latest_timestamp or date_from)
-        datetime_from = datetime.datetime.combine(datetime_from, datetime.datetime.min.time())
+        # datetime_from = datetime.datetime.combine(datetime_from, datetime.datetime.min.time())
         date_to = datetime.datetime.now()
 
         print(date_from)
         print(datetime_from)
         print(date_to)
+        print(self.latest_timestamp)
         # Retrieve price data from MetaTrader5
         price = mt.copy_rates_range(self.selected_instrument, self.metatrader_timeframe, datetime_from, date_to)
         if price is None or len(price) == 0:
@@ -327,13 +335,18 @@ class CandlestickGUI(QMainWindow):
             "low": "Low", "close": "Close", "tick_volume": "Volume"
         }, inplace=True)
 
+        df = df[['DateTime', 'Open', 'High', 'Low', 'Close', 'Volume']]
+
+        print("-" * 100)
+        print(df)
+        print("-" * 100)
+
         if self.latest_timestamp is not None:
             # Filter out data older than the latest timestamp
             df = df[df['DateTime'] > self.latest_timestamp]
 
         if not df.empty:
             self.latest_timestamp = df['DateTime'].max()
-        print(df)
         return df
 
     def getDataFrame(self):
@@ -346,6 +359,39 @@ class CandlestickGUI(QMainWindow):
 
         return df
     
+
+
+    def generate_dummy_data(self):
+        """Generate dummy data to simulate live updates."""
+        import random
+
+        # Create a single row of dummy data
+        # You can adjust the logic to generate data that makes sense for your application
+        last_row = self.live_data_window.df.iloc[-1]
+        last_time = last_row['DateTime']
+
+        # Increment time by the interval (e.g., 1 minute)
+        new_time = last_time + datetime.timedelta(minutes=1)
+
+        # Generate random price changes
+        base_price = last_row['Close'] / self.factor
+        open_price = base_price + random.uniform(-0.001, 0.001)
+        high_price = open_price + random.uniform(0, 0.002)
+        low_price = open_price - random.uniform(0, 0.002)
+        close_price = open_price + random.uniform(-0.001, 0.001)
+
+        # Create a DataFrame with the new data
+        data = {
+            'DateTime': [new_time],
+            'Open': [open_price],
+            'High': [high_price],
+            'Low': [low_price],
+            'Close': [close_price],
+            'Volume': [0],  # Volume can be set to 0 or any dummy value
+        }
+        df = pd.DataFrame(data)
+
+        return df
     def update_live_data(self):
         """Fetch new data and update the live chart."""
         print("Updating live data...")
@@ -353,26 +399,59 @@ class CandlestickGUI(QMainWindow):
         if self.live_data_window is None or self.selected_instrument is None:
             return
 
-        new_data = self.fetch_live_data()
+        # new_data = self.fetch_live_data()
+        new_data = self.generate_dummy_data()
+        print(new_data)
         if new_data is not None and not new_data.empty:
             print(f"Adding {len(new_data)} new rows to the chart.")
             self.live_data_window.add_live_data(new_data)
 
+    # def update_live_data(self):
+    #     """Simulate live data updates with dummy data."""
+    #     print("Updating live data...")
+
+    #     if self.live_data_window is None:
+    #         return
+
+    #     # Generate dummy data
+    #     new_data = self.generate_dummy_data()
+    #     print(new_data)
+    #     if new_data is not None and not new_data.empty:
+    #         print(f"Adding {len(new_data)} new rows to the chart.")
+    #         self.live_data_window.add_live_data(new_data)
+
+
+    # def plot_candles(self, empty=False):
+    #     """Handle initial plotting and setup live updates if using live data."""
+    #     self.errorDisplay(" ")
+    #     df = self.getDataFrame()
+    #     if df is None:
+    #         return
+
+    #     persentageVal = float(self.doubleSpinBox.value())
+    #     self.live_data_window = PlotWindow(df=df, persentageVal=persentageVal)
+    #     self.plot_windows.append(self.live_data_window)
+    #     self.live_data_window.show()
+
+    #     if self.selected_instrument is not None and self.file_path is None:
+    #         # If live data is selected, start live updates
+    #         self.live_update_timer.start(10000)  # Fetch new data every 5 seconds
+
     def plot_candles(self, empty=False):
-        """Handle initial plotting and setup live updates if using live data."""
+        """Handle initial plotting and setup live updates."""
         self.errorDisplay(" ")
         df = self.getDataFrame()
         if df is None:
             return
-
+        print(df)
         persentageVal = float(self.doubleSpinBox.value())
         self.live_data_window = PlotWindow(df=df, persentageVal=persentageVal)
         self.plot_windows.append(self.live_data_window)
         self.live_data_window.show()
 
-        if self.selected_instrument is not None and self.file_path is None:
-            # If live data is selected, start live updates
-            self.live_update_timer.start(60000)  # Fetch new data every 5 seconds
+        # Start the live update timer regardless of live data source
+        self.live_update_timer.start(5000)  # Update every 5 seconds
+
 
 
     def setDate(self, date):

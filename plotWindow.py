@@ -1105,6 +1105,8 @@ class PlotWindow(QMainWindow):
         self.DraggablePointList = []
         self.__collections = []
         self.setWindowTitle("Chart")
+        self.currentPos = 0  # Initialize currentPos
+
         self.factor = 10000
         self.Fraction = 1
         self.minPoint = 0.00001
@@ -1573,6 +1575,7 @@ class PlotWindow(QMainWindow):
         self.ax.set_ylim([self.ax.get_ylim()[0], self.ax.get_ylim()[0] + y_lim_custom])
 
     def set_parametrs_ax(self):
+        # Set tick parameters
         self.ax.xaxis.set_tick_params(which='minor', width=0.5)
         self.ax.yaxis.set_tick_params(which='minor', width=0.5)
 
@@ -1580,44 +1583,74 @@ class PlotWindow(QMainWindow):
             self.ax.xaxis.set_tick_params(which='major', width=0.5)
             self.ax.yaxis.set_tick_params(which='major', width=0.5)
 
+        # Set grid lines
         self.ax.grid(which='major', axis='both', linestyle='-',
-                     color=self.grid_parametrs[1], linewidth=self.grid_parametrs[3],
-                     alpha=self.grid_parametrs[4], zorder=0, )
+                    color=self.grid_parametrs[1], linewidth=self.grid_parametrs[3],
+                    alpha=self.grid_parametrs[4], zorder=0)
         self.ax.grid(which='minor', axis='both', linestyle=':',
-                     color=self.grid_parametrs[2], linewidth=self.grid_parametrs[5],
-                     alpha=self.grid_parametrs[6], zorder=0, )
+                    color=self.grid_parametrs[2], linewidth=self.grid_parametrs[5],
+                    alpha=self.grid_parametrs[6], zorder=0)
 
+        # Set background color
         self.canvas.figure.set_facecolor(self.grid_parametrs[7])
         self.ax.set_facecolor(self.grid_parametrs[7])
 
+        # Set aspect ratio
         self.ax.set_aspect('equal')
+
+        # Calculate factors and step size
         myFactor = self.factor * self.minPoint
         self.set_limit_ax(myFactor)
 
+        # Ensure Fraction is not zero to avoid division by zero
+        if self.Fraction == 0:
+            self.Fraction = 1
+
+        # Calculate step size
         self.step = self.grid_parametrs[0] * myFactor / self.Fraction
 
-        x_locator = np.arange(0, max(len(self.df) * myFactor / self.Fraction, self.ax.get_xlim()[1]), self.step)
+        # Ensure step is not zero
+        if self.step == 0:
+            self.step = 1
+
+        # Generate x-axis locators
+        x_locator = np.arange(0, max(len(self.df) * self.step, self.ax.get_xlim()[1]), self.step)
+
+        # Generate y-axis locators
         y_locator = np.arange(self.ax.get_ylim()[0], max(self.ax.get_ylim()[1], self.df['High'].max()), self.step)
+
+        # Generate x-axis labels
         x_label = self.df['DateTime'].tolist()
-        count = len(x_locator) - len(x_label[::int(self.grid_parametrs[0])])
-        len_x_label_with_step = self.gen_dop_label(count)
+        len_x_label_with_step = self.gen_dop_label()
 
-        range_xlabels = np.arange(0, max(len(self.df) * myFactor / self.Fraction, self.ax.get_xlim()[1]),
-                                  myFactor / self.Fraction)
-        range_xlabels = np.round(range_xlabels, 2)
-
+        # Map x positions to labels
+        range_xlabels = np.arange(0, len(len_x_label_with_step) * self.step, self.step)
         self.dict_label_x_with_data = dict(zip(range_xlabels, len_x_label_with_step))
 
-        len_x_label_with_step = len_x_label_with_step[::int(self.grid_parametrs[0])]
+        # Set minor ticks on
         self.ax.minorticks_on()
+
+        # Set major locators
         self.ax.xaxis.set_major_locator(FixedLocator(x_locator))
         self.ax.yaxis.set_major_locator(FixedLocator(y_locator))
+
+        # Limit the number of x-axis ticks
+        max_ticks = 20  # Adjust as needed
+        step_ticks = max(int(len(x_locator) / max_ticks), 1)
+        x_locator_ticks = x_locator[::step_ticks]
+        x_labels_ticks = len_x_label_with_step[::step_ticks]
+
+        # Set x-axis labels
         try:
-            self.ax.set_xticklabels(len_x_label_with_step, rotation=55, fontsize=8)
+            self.ax.set_xticks(x_locator_ticks)
+            self.ax.set_xticklabels(x_labels_ticks, rotation=55, fontsize=8)
         except Exception as e:
             print(e)
+
+        # Set minor locators
         self.ax.xaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
         self.ax.yaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
+
 
     def gen_dop_label(self, count=0) -> list:
         result = []
@@ -1637,7 +1670,7 @@ class PlotWindow(QMainWindow):
 
             try:
                 if len(self.df) > 1:
-                    time_delta_minute = abs(self.df.iloc[0, 7] - self.df.iloc[1, 7])
+                    time_delta_minute = abs(self.df.iloc[0, 5] - self.df.iloc[1, 5])
                     time_delta_minute = time_delta_minute.total_seconds()/60
             except AttributeError as exp:
                 if len(self.df) > 1:
@@ -1655,96 +1688,194 @@ class PlotWindow(QMainWindow):
             result.extend(dop.strftime(datetime_format).tolist())
         return result
 
+    # def plotMainDraph(self):
+    #     # if self.worker_thread is None or not self.worker_thread.isRunning():
+    #     self.coordinates_label.setVisible(True)
+    #     self.coordinates_label.setValue(0)
+    #     self.coordinates_label.setMaximum(len(self.df)+len(self.get_collections()))
+    #     self.ax.clear()
+    #     self.bm.remove_all()
+    #     self.currentPos = 0  # Reset currentPos for initial plotting
+    #     self.set_parametrs_ax()
+    #     self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
+
+    #     width = self.step
+    #     if self.grid_parametrs[0] != 0:
+    #         width /= self.grid_parametrs[0]
+    #     ind = 0
+    #     for index, row in self.df.iterrows():
+    #         ind += 1
+    #         self.coordinates_label.setValue(ind)
+    #         # Draw outer rectangle
+    #         heightOuter = (row['High'] - row['Low'])
+    #         heightInner = abs(row['Close'] - row['Open'])
+    #         innerMinVal = min([row['Close'], row['Open']])
+
+    #         outer_rect = patches.Rectangle((self.currentPos, row['Low']), width, heightOuter, linewidth=0.5,
+    #                                     edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
+    #         self.ax.add_patch(outer_rect)
+    #         # Draw inner rectangle
+    #         inner_rect = patches.Rectangle((self.currentPos, innerMinVal), width, heightInner, linewidth=0.5,
+    #                                     facecolor=self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10], zorder=1)
+    #         self.ax.add_patch(inner_rect)
+    #         self.currentPos += width  # Update currentPos
+
+    #     for lines_ in self.get_collections():
+    #         print(lines_)
+    #         if isinstance(lines_, LineDrawer): 
+    #             if hasattr(lines_,'childrens'):
+    #                 for artist in lines_.childrens:
+    #                     if not artist.get_figure():
+    #                         artist.set_figure(self.fig)
+    #             # lines_.an1.set_figure(self.fig)
+    #             # lines_.an2.set_figure(self.fig)
+    #             # self.ax.add_artist(lines_.an1)
+    #             # self.ax.add_artist(lines_.an2)
+                
+    #             # self.bm.add_artist(lines_.an1)
+    #             # self.bm.add_artist(lines_.an2)
+    #             # self.bm.add_artist(lines_.marker_collection)
+    #         # else:
+    #         self.ax.add_collection(lines_)
+    #         self.bm.add_artist(lines_)
+    #         ind += 1
+    #         self.coordinates_label.setValue(ind)
+    #     self.bm.update()    
+    #     self.ax.figure.canvas.draw_idle()
+    #     self.coordinates_label.setValue(0)
+    #     self.coordinates_label.setVisible(False)
+
     def plotMainDraph(self):
-        # if self.worker_thread is None or not self.worker_thread.isRunning():
         self.coordinates_label.setVisible(True)
         self.coordinates_label.setValue(0)
-        self.coordinates_label.setMaximum(len(self.df)+len(self.get_collections()))
+        self.coordinates_label.setMaximum(len(self.df) + len(self.get_collections()))
         self.ax.clear()
         self.bm.remove_all()
-        currentPos = 0
+
+        # Reset currentPos for initial plotting
+        self.currentPos = 0
+
+        # Set axes parameters
         self.set_parametrs_ax()
         self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
 
+        # Calculate candle width
         width = self.step
         if self.grid_parametrs[0] != 0:
             width /= self.grid_parametrs[0]
+
         ind = 0
         for index, row in self.df.iterrows():
             ind += 1
             self.coordinates_label.setValue(ind)
-            # Draw outer rectangle
-            heightOuter = (row['High']-row['Low'])
-            heightInner = abs(row['Close']-row['Open'])
-            innerMinVal = min([row['Close'], row['Open']])
-
-            outer_rect = patches.Rectangle((currentPos, row['Low']), width, heightOuter, linewidth=0.5,
-                                           edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
-            self.ax.add_patch(outer_rect)
-            # Draw inner rectangle
-            inner_rect = patches.Rectangle((currentPos, innerMinVal), width, heightInner, linewidth=0.5,
-                                           facecolor= self.grid_parametrs[9] if (row['Close']-row['Open'] >= 0) else self.grid_parametrs[10], zorder=1)
-            self.ax.add_patch(inner_rect)
-            currentPos += width
-
-        for lines_ in self.get_collections():
-            print(lines_)
-            if isinstance(lines_, LineDrawer): 
-                if hasattr(lines_,'childrens'):
-                    for artist in lines_.childrens:
-                        if not artist.get_figure():
-                            artist.set_figure(self.fig)
-                # lines_.an1.set_figure(self.fig)
-                # lines_.an2.set_figure(self.fig)
-                # self.ax.add_artist(lines_.an1)
-                # self.ax.add_artist(lines_.an2)
-                
-                # self.bm.add_artist(lines_.an1)
-                # self.bm.add_artist(lines_.an2)
-                # self.bm.add_artist(lines_.marker_collection)
-            # else:
-            self.ax.add_collection(lines_)
-            self.bm.add_artist(lines_)
-            ind += 1
-            self.coordinates_label.setValue(ind)
-        self.bm.update()    
-        self.ax.figure.canvas.draw_idle()
-        self.coordinates_label.setValue(0)
-        self.coordinates_label.setVisible(False)
-
-    def add_live_data(self, new_data):
-        """Dynamically add new data to the plot."""
-        if new_data.empty:
-            return
-
-        # Add the new data to the DataFrame
-        self.df = pd.concat([self.df, new_data]).reset_index(drop=True)
-
-        # Plot the new candlestick bars
-        currentPos = self.df.shape[0] * self.step
-        for _, row in new_data.iterrows():
+            # Draw outer rectangle (High-Low)
             heightOuter = (row['High'] - row['Low'])
             heightInner = abs(row['Close'] - row['Open'])
             innerMinVal = min([row['Close'], row['Open']])
 
             outer_rect = patches.Rectangle(
-                (currentPos, row['Low']), self.step, heightOuter,
+                (self.currentPos, row['Low']), width, heightOuter,
                 linewidth=0.5, edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
             self.ax.add_patch(outer_rect)
 
+            # Draw inner rectangle (Open-Close)
             inner_rect = patches.Rectangle(
-                (currentPos, innerMinVal), self.step, heightInner,
+                (self.currentPos, innerMinVal), width, heightInner,
+                linewidth=0.5,
+                facecolor=self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10],
+                zorder=1)
+            self.ax.add_patch(inner_rect)
+
+            # Update currentPos
+            self.currentPos += width
+
+        # Add any existing collections (e.g., lines, shapes)
+        for lines_ in self.get_collections():
+            if isinstance(lines_, LineDrawer):
+                if hasattr(lines_, 'childrens'):
+                    for artist in lines_.childrens:
+                        if not artist.get_figure():
+                            artist.set_figure(self.fig)
+            self.ax.add_collection(lines_)
+            self.bm.add_artist(lines_)
+            ind += 1
+            self.coordinates_label.setValue(ind)
+
+        # Update plot
+        self.bm.update()
+        self.ax.figure.canvas.draw_idle()
+        self.coordinates_label.setValue(0)
+        self.coordinates_label.setVisible(False)
+
+    def update_xaxis_labels(self):
+        total_candles = self.df.shape[0]
+        x_positions = np.arange(0, self.currentPos, self.step)
+
+        # Limit the number of ticks
+        max_ticks = 20  # Set a maximum number of ticks you want
+        step = max(int(len(x_positions) / max_ticks), 1)
+        x_positions_ticks = x_positions[::step]
+        x_labels_ticks = self.df['DateTime'].dt.strftime('%Y.%m.%d %H:%M').tolist()[::step]
+
+        self.dict_label_x_with_data = dict(zip(x_positions, self.df['DateTime'].dt.strftime('%Y.%m.%d %H:%M').tolist()))
+
+        self.ax.minorticks_on()
+        self.ax.xaxis.set_major_locator(FixedLocator(x_positions_ticks))
+        try:
+            self.ax.set_xticklabels(x_labels_ticks, rotation=55, fontsize=8)
+        except Exception as e:
+            print(e)
+        self.ax.xaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
+
+    def add_live_data(self, new_data):
+        if new_data.empty:
+            return
+
+        # Scale the price data
+        new_data['High'] = new_data['High'] * self.factor
+        new_data['Low'] = new_data['Low'] * self.factor
+        new_data['Open'] = new_data['Open'] * self.factor
+        new_data['Close'] = new_data['Close'] * self.factor
+
+        width = self.step
+        if self.grid_parametrs[0] != 0:
+            width /= self.grid_parametrs[0]
+
+        for _, row in new_data.iterrows():
+            # Draw outer rectangle (High-Low)
+            heightOuter = (row['High'] - row['Low'])
+            heightInner = abs(row['Close'] - row['Open'])
+            innerMinVal = min([row['Close'], row['Open']])
+
+            outer_rect = patches.Rectangle(
+                (self.currentPos, row['Low']), width, heightOuter,
+                linewidth=0.5, edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
+            self.ax.add_patch(outer_rect)
+
+            # Draw inner rectangle (Open-Close)
+            inner_rect = patches.Rectangle(
+                (self.currentPos, innerMinVal), width, heightInner,
                 linewidth=0.5,
                 facecolor=self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10],
                 zorder=1
             )
             self.ax.add_patch(inner_rect)
 
-            currentPos += self.step
+            self.currentPos += width  # Update currentPos
+
+        # Concatenate new data to the DataFrame
+        self.df = pd.concat([self.df, new_data]).reset_index(drop=True)
+
+        # Update the x-axis limits to include the new candles
+        self.ax.set_xlim(0, self.currentPos)
+
+        # Update x-axis ticks and labels
+        self.update_xaxis_labels()
 
         # Redraw the plot
         self.bm.update()
         self.ax.figure.canvas.draw_idle()
+
 
 
 if __name__ == '__main__':
