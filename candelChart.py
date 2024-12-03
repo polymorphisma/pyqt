@@ -399,8 +399,8 @@ class CandlestickGUI(QMainWindow):
         if self.live_data_window is None or self.selected_instrument is None:
             return
 
-        new_data = self.fetch_live_data()
-        # new_data = self.generate_dummy_data()
+        # new_data = self.fetch_live_data()
+        new_data = self.generate_dummy_data()
         print(new_data)
         if new_data is not None and not new_data.empty:
             print(f"Adding {len(new_data)} new rows to the chart.")

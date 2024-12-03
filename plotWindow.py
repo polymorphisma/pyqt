@@ -24,6 +24,7 @@ from matplotlib.lines import Line2D
 from matplotlib.transforms import Affine2D, IdentityTransform
 
 
+
 from angleWindow import AngleWindow
 from fractionWindow import FractionWindow
 from rectwindow import InputDialog
@@ -1573,6 +1574,106 @@ class PlotWindow(QMainWindow):
 
         self.ax.set_xlim([self.ax.get_xlim()[0], self.ax.get_xlim()[1] - self.grid_parametrs[8] * myFactor])
         self.ax.set_ylim([self.ax.get_ylim()[0], self.ax.get_ylim()[0] + y_lim_custom])
+    def calculate_step_size(self):
+        # Calculate factors and step size
+        myFactor = self.factor * self.minPoint
+        self.set_limit_ax(myFactor)
+
+        # Ensure Fraction is not zero to avoid division by zero
+        if self.Fraction == 0:
+            self.Fraction = 1
+
+        # Calculate step size
+        self.step = self.grid_parametrs[0] * myFactor / self.Fraction
+
+        # Ensure step is not zero
+        if self.step == 0:
+            self.step = 1
+
+        print(f"Calculated step size: {self.step}")
+
+    # def set_parametrs_ax(self):
+    #     # Set tick parameters
+    #     self.ax.xaxis.set_tick_params(which='minor', width=0.5)
+    #     self.ax.yaxis.set_tick_params(which='minor', width=0.5)
+
+    #     if self.df.shape[0] >= 100:
+    #         self.ax.xaxis.set_tick_params(which='major', width=0.5)
+    #         self.ax.yaxis.set_tick_params(which='major', width=0.5)
+
+    #     # Set grid lines
+    #     self.ax.grid(which='major', axis='both', linestyle='-',
+    #                 color=self.grid_parametrs[1], linewidth=self.grid_parametrs[3],
+    #                 alpha=self.grid_parametrs[4], zorder=0)
+    #     self.ax.grid(which='minor', axis='both', linestyle=':',
+    #                 color=self.grid_parametrs[2], linewidth=self.grid_parametrs[5],
+    #                 alpha=self.grid_parametrs[6], zorder=0)
+
+    #     # Set background color
+    #     self.canvas.figure.set_facecolor(self.grid_parametrs[7])
+    #     self.ax.set_facecolor(self.grid_parametrs[7])
+
+    #     # Set aspect ratio
+    #     self.ax.set_aspect('equal')
+
+    #     # Calculate factors and step size
+    #     myFactor = self.factor * self.minPoint
+    #     self.set_limit_ax(myFactor)
+
+    #     # Ensure Fraction is not zero to avoid division by zero
+    #     if self.Fraction == 0:
+    #         self.Fraction = 1
+
+    #     # Calculate step size
+    #     self.step = self.grid_parametrs[0] * myFactor / self.Fraction
+
+    #     # Ensure step is not zero
+    #     if self.step == 0:
+    #         self.step = 1
+
+    #     # Generate x-axis locators
+    #     # x_locator = np.arange(0, max(len(self.df) * self.step, self.ax.get_xlim()[1]), self.step)
+    #     x_locator = np.arange(0, max(len(self.df) * myFactor / self.Fraction, self.ax.get_xlim()[1]), self.step)
+
+    #     # Generate y-axis locators
+    #     y_locator = np.arange(self.ax.get_ylim()[0], max(self.ax.get_ylim()[1], self.df['High'].max()), self.step)
+
+    #     # Generate x-axis labels
+    #     x_label = self.df['DateTime'].tolist()
+    #     len_x_label_with_step = self.gen_dop_label()
+
+    #     # Map x positions to labels
+    #     range_xlabels = np.arange(0, len(len_x_label_with_step) * self.step, self.step)
+    #     self.dict_label_x_with_data = dict(zip(range_xlabels, len_x_label_with_step))
+
+    #     # Set minor ticks on
+    #     self.ax.minorticks_on()
+
+    #     # Set major locators
+    #     self.ax.xaxis.set_major_locator(FixedLocator(x_locator))
+    #     self.ax.yaxis.set_major_locator(FixedLocator(y_locator))
+
+    #     print("================================================================")
+    #     print(x_locator)
+    #     print("================================================================")
+
+    #     # Limit the number of x-axis ticks
+    #     max_ticks = 20  # Adjust as needed
+    #     step_ticks = max(int(len(x_locator) / max_ticks), 1)
+    #     x_locator_ticks = x_locator[::step_ticks]
+    #     x_labels_ticks = len_x_label_with_step[::step_ticks]
+
+
+    #     # Set x-axis labels
+    #     try:
+    #         self.ax.set_xticks(x_locator_ticks)
+    #         self.ax.set_xticklabels(x_labels_ticks, rotation=55, fontsize=8)
+    #     except Exception as e:
+    #         print(e)
+
+    #     # Set minor locators
+    #     self.ax.xaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
+    #     self.ax.yaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
 
     def set_parametrs_ax(self):
         # Set tick parameters
@@ -1598,41 +1699,32 @@ class PlotWindow(QMainWindow):
         # Set aspect ratio
         self.ax.set_aspect('equal')
 
-        # Calculate factors and step size
-        myFactor = self.factor * self.minPoint
-        self.set_limit_ax(myFactor)
-
-        # Ensure Fraction is not zero to avoid division by zero
-        if self.Fraction == 0:
-            self.Fraction = 1
-
-        # Calculate step size
-        self.step = self.grid_parametrs[0] * myFactor / self.Fraction
-
-        # Ensure step is not zero
-        if self.step == 0:
-            self.step = 1
+        # Calculate step size using the helper method
+        self.calculate_step_size()
 
         # Generate x-axis locators
-        x_locator = np.arange(0, max(len(self.df) * self.step, self.ax.get_xlim()[1]), self.step)
+        x_locator = np.arange(0, max(len(self.df) * self.factor * self.minPoint / self.Fraction, self.ax.get_xlim()[1]), self.step)
 
         # Generate y-axis locators
         y_locator = np.arange(self.ax.get_ylim()[0], max(self.ax.get_ylim()[1], self.df['High'].max()), self.step)
 
         # Generate x-axis labels
-        x_label = self.df['DateTime'].tolist()
         len_x_label_with_step = self.gen_dop_label()
 
         # Map x positions to labels
         range_xlabels = np.arange(0, len(len_x_label_with_step) * self.step, self.step)
         self.dict_label_x_with_data = dict(zip(range_xlabels, len_x_label_with_step))
 
-        # Set minor ticks on
+        # Enable minor ticks
         self.ax.minorticks_on()
 
         # Set major locators
         self.ax.xaxis.set_major_locator(FixedLocator(x_locator))
         self.ax.yaxis.set_major_locator(FixedLocator(y_locator))
+
+        print("================================================================")
+        print(x_locator)
+        print("================================================================")
 
         # Limit the number of x-axis ticks
         max_ticks = 20  # Adjust as needed
@@ -1650,7 +1742,6 @@ class PlotWindow(QMainWindow):
         # Set minor locators
         self.ax.xaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
         self.ax.yaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
-
 
     def gen_dop_label(self, count=0) -> list:
         result = []
@@ -1808,24 +1899,52 @@ class PlotWindow(QMainWindow):
         self.coordinates_label.setVisible(False)
 
     def update_xaxis_labels(self):
-        total_candles = self.df.shape[0]
-        x_positions = np.arange(0, self.currentPos, self.step)
+        # Recalculate step size to ensure consistency
+        self.calculate_step_size()
 
-        # Limit the number of ticks
-        max_ticks = 20  # Set a maximum number of ticks you want
-        step = max(int(len(x_positions) / max_ticks), 1)
-        x_positions_ticks = x_positions[::step]
-        x_labels_ticks = self.df['DateTime'].dt.strftime('%Y.%m.%d %H:%M').tolist()[::step]
+        # Generate x-axis locators using the same logic as set_parametrs_ax
+        x_locator = np.arange(0, max(len(self.df) * self.factor * self.minPoint / self.Fraction, self.ax.get_xlim()[1]), self.step)
 
-        self.dict_label_x_with_data = dict(zip(x_positions, self.df['DateTime'].dt.strftime('%Y.%m.%d %H:%M').tolist()))
+        # Generate y-axis locators
+        y_locator = np.arange(self.ax.get_ylim()[0], max(self.ax.get_ylim()[1], self.df['High'].max()), self.step)
 
+        # Generate x-axis labels
+        len_x_label_with_step = self.gen_dop_label()
+
+        # Map x positions to labels
+        range_xlabels = np.arange(0, len(len_x_label_with_step) * self.step, self.step)
+        self.dict_label_x_with_data = dict(zip(range_xlabels, len_x_label_with_step))
+
+        # Enable minor ticks
         self.ax.minorticks_on()
-        self.ax.xaxis.set_major_locator(FixedLocator(x_positions_ticks))
+
+        # Set major locators using FixedLocator
+        self.ax.xaxis.set_major_locator(FixedLocator(x_locator))
+        self.ax.yaxis.set_major_locator(FixedLocator(y_locator))
+
+        print("================================================================")
+        print(x_locator)
+        print("================================================================")
+
+        # Limit the number of x-axis ticks
+        max_ticks = 20  # Adjust as needed
+        step_ticks = max(int(len(x_locator) / max_ticks), 1)
+        x_locator_ticks = x_locator[::step_ticks]
+        x_labels_ticks = len_x_label_with_step[::step_ticks]
+
+        # Set x-axis labels
         try:
+            self.ax.set_xticks(x_locator_ticks)
             self.ax.set_xticklabels(x_labels_ticks, rotation=55, fontsize=8)
         except Exception as e:
             print(e)
+
+        # Set minor locators
         self.ax.xaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
+        self.ax.yaxis.set_minor_locator(AutoMinorLocator(self.grid_parametrs[0]))
+
+        # Refresh the plot to apply changes
+        self.canvas.draw_idle()
 
     def add_live_data(self, new_data):
         if new_data.empty:
